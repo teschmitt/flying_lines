@@ -44,10 +44,11 @@ class LineRunner(arcade.Window):
 
         if len(self.line_list) == 0:
             line.points = [random.randrange(SCREEN_WIDTH), random.randrange(SCREEN_HEIGHT), random.randrange(SCREEN_WIDTH), random.randrange(SCREEN_HEIGHT)]
-            line.diff = [random.randrange(-3, 3), random.randrange(-3, 3), random.randrange(-3, 3), random.randrange(-3, 3)]
+            line.diff = [random.randrange(300) / 100 for _ in line.diff]
+            print(line.diff)
         else:
             last_line = self.line_list[-1]
-            line.points = [last_line.points[i] + FOLLOW_DISTANCE * last_line.diff[i] for i in range(len(line.points))]
+            line.points = [last_line.points[i] - FOLLOW_DISTANCE * last_line.diff[i] for i in range(len(line.points))]
             line.diff = last_line.diff[:]
 
         self.line_list.append(line)
