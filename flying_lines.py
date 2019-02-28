@@ -1,12 +1,13 @@
 import arcade
 import random
-from operator import add, mul
+from operator import add
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 SCREEN_TITLE = "Psychedelic Lines"
 
 FOLLOW_DISTANCE = 10
+
 
 class Line:
     def __init__(self):
@@ -21,7 +22,6 @@ class LineRunner(arcade.Window):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
         self.line_list = []
 
-
     def on_draw(self):
         arcade.start_render()
         for line in self.line_list:
@@ -35,7 +35,6 @@ class LineRunner(arcade.Window):
             for i in range(len(line.points)):
                 if line.points[i] <= 0 or line.points[i] >= comp[i]:
                     line.diff[i] *= -1
-
 
     def on_mouse_press(self, x, y, button, modifiers):
         """
