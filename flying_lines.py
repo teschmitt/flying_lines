@@ -1,11 +1,10 @@
 import arcade
 import random
-from operator import add
 
-CANVAS_WIDTH = 800
-CANVAS_HEIGHT = 600
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 650
+CANVAS_WIDTH = 1000
+CANVAS_HEIGHT = 800
+WINDOW_WIDTH = 1000
+WINDOW_HEIGHT = 750
 SCREEN_TITLE = "Psychedelic Lines"
 
 FOLLOW_DISTANCE = 10
@@ -16,6 +15,7 @@ class Line:
     def __init__(self):
         self.points = [0, 0, 0, 0]
         self.diff = [0, 0, 0, 0]
+        self.pos_flag = [1, 1, 1, 1]
         self.color = arcade.color.WHITE_SMOKE
 
 
@@ -26,8 +26,8 @@ class DController:
 
     def __init__(self, center_x, center_y, width, height, max_value_x, max_value_y, value_x, value_y):
         self.is_pressed = False
-        self.center_x = self.knob_x = center_x
-        self.center_y = self.knob_y = center_y
+        self.center_x = center_x
+        self.center_y = center_y
         self.width = width
         self.height = height
         self.max_value_x = max_value_x
@@ -35,10 +35,12 @@ class DController:
         self.value_x = value_x
         self.value_y = value_y
         self.knob_radius = 5
-        self.x_bound_min = self.center_x + (self.width / 2) - self.knob_radius
-        self.x_bound_max = self.center_x - (self.width / 2) + self.knob_radius
-        self.y_bound_min = self.center_y + (self.height / 2) - self.knob_radius
-        self.y_bound_max = self.center_y - (self.height / 2) + self.knob_radius
+        self.x_bound_min = self.center_x + (self.width / 2) - (self.knob_radius - 1)
+        self.x_bound_max = self.center_x - (self.width / 2) + (self.knob_radius - 1)
+        self.y_bound_min = self.center_y + (self.height / 2) - (self.knob_radius - 1)
+        self.y_bound_max = self.center_y - (self.height / 2) + (self.knob_radius - 1)
+        self.knob_x = (self.value_x / self.max_value_x) * ((self.x_bound_max - self.x_bound_min) / 2) + self.center_x
+        self.knob_y = (self.value_y / self.max_value_y) * ((self.y_bound_max - self.y_bound_min) / 2) + self.center_y
 
     def draw(self):
         arcade.draw_rectangle_outline(self.center_x, self.center_y, self.width, self.height,
@@ -56,24 +58,37 @@ class DController:
             self.drag_knob(x, y)
 
     def drag_knob(self, x, y):
-        if self.x_bound_max < x < self.x_bound_min:
+        if self.x_bound_max <= x <= self.x_bound_min:
             self.knob_x = x
-        if self.y_bound_max < y < self.y_bound_min:
+        if self.y_bound_max <= y <= self.y_bound_min:
             self.knob_y = y
 
-        self.value_x = (self.knob_x - self.center_x) / ((self.x_bound_max - self.x_bound_min)/2) * self.max_value_x
-        self.value_y= (self.knob_y - self.center_y) / ((self.x_bound_max - self.x_bound_min)/2) * self.max_value_y
-        print(self.value_x, self.value_y)
+        self.value_x = (self.knob_x - self.center_x) / ((self.x_bound_max - self.x_bound_min) / 2) * self.max_value_x
+        self.value_y = (self.knob_y - self.center_y) / ((self.x_bound_max - self.x_bound_min) / 2) * self.max_value_y
 
     def release(self):
         self.is_pressed = False
 
 
-def check_mouse_press_for_controller(x, y, controller_list):
-    """ Given an x, y, see if we need to register any button clicks. """
-    for controller in controller_list:
-        if controller.is_knob_pressed(x, y):
-            continue
+def init_lines(num_lines):
+    result = []
+    comp = [CANVAS_WIDTH, CANVAS_HEIGHT + (WINDOW_HEIGHT - CANVAS_HEIGHT)] * 2
+    line = Line()
+    line.points = [random.randrange(CANVAS_WIDTH),
+                   random.randrange(CANVAS_HEIGHT) + (WINDOW_HEIGHT - CANVAS_HEIGHT),
+                   random.randrange(CANVAS_WIDTH),
+                   random.randrange(CANVAS_HEIGHT) + (WINDOW_HEIGHT - CANVAS_HEIGHT)]
+    line.diff = [random.randrange(MAX_DX * 100) / 100 for _ in line.diff]
+    result.append(line)
+    for _ in range(num_lines - 1):
+        first_line = result[0]
+        line.points = [first_line.points[i] + FOLLOW_DISTANCE * first_line.diff[i] for i in range(4)]
+        for i in range(4):
+            if line.points[i] <= 0 or line.points[i] >= comp[i]:
+                line.diff[i] *= -1
+        line.diff = first_line.diff[:]
+        result.insert(0, line)
+    return result
 
 
 class LineRunner(arcade.Window):
@@ -82,18 +97,15 @@ class LineRunner(arcade.Window):
         super().__init__(WINDOW_WIDTH, WINDOW_HEIGHT, SCREEN_TITLE)
         self.line_list = []
         self.controller_list = []
+        self.controller_p0 = None
+        self.controller_p1 = None
 
     def setup(self):
-        line = Line()
-        line.points = [random.randrange(CANVAS_WIDTH),
-                       random.randrange(CANVAS_HEIGHT) + (WINDOW_HEIGHT - CANVAS_HEIGHT),
-                       random.randrange(CANVAS_WIDTH),
-                       random.randrange(CANVAS_HEIGHT) + (WINDOW_HEIGHT - CANVAS_HEIGHT)]
-        line.diff = [random.randrange(MAX_DX * 100) / 100 for _ in line.diff]
-        self.line_list.append(line)
-
-        self.controller_list.append(DController(600, 25, 40, 40, MAX_DX, MAX_DY, 0, 0))
-        self.controller_list.append(DController(660, 25, 40, 40, MAX_DX, MAX_DY, 0, 0))
+        self.line_list = init_lines(20)
+        line = self.line_list[0]
+        self.controller_p0 = DController(660, 25, 40, 40, MAX_DX, MAX_DY, line.diff[0], line.diff[1])
+        self.controller_p1 = DController(730, 25, 40, 40, MAX_DX, MAX_DY, line.diff[2], line.diff[3])
+        self.controller_list = [self.controller_p0, self.controller_p1]
 
     def on_draw(self):
         arcade.start_render()
@@ -104,12 +116,25 @@ class LineRunner(arcade.Window):
 
     def update(self, delta_time):
         comp = [CANVAS_WIDTH, CANVAS_HEIGHT + (WINDOW_HEIGHT - CANVAS_HEIGHT)] * 2
-        for line in self.line_list:
-            line.points = list(map(add, line.points, line.diff))
 
-            for i in range(len(line.points)):
-                if line.points[i] <= 0 or line.points[i] >= comp[i]:
-                    line.diff[i] *= -1
+        line = Line()
+        first_line = self.line_list[0]
+        line.points = [first_line.points[i] + FOLLOW_DISTANCE * first_line.diff[i] for i in range(4)]
+        line.diff = first_line.diff[:]
+
+        self.line_list.pop()
+
+        for i in range(4):
+            if line.points[i] <= 0 or line.points[i] >= comp[i]:
+                line.diff[i] *= -1
+                line.pos_flag[i] *= -1
+
+        line.diff[0] = self.controller_p0.value_x * line.pos_flag[0]
+        line.diff[1] = self.controller_p0.value_y * line.pos_flag[1]
+        line.diff[2] = self.controller_p1.value_x * line.pos_flag[2]
+        line.diff[3] = self.controller_p1.value_y * line.pos_flag[3]
+
+        self.line_list.insert(0, line)
 
     def on_mouse_press(self, x, y, button, modifiers):
         """
@@ -123,11 +148,9 @@ class LineRunner(arcade.Window):
 
         if not controller_active:
             line = Line()
-
             last_line = self.line_list[-1]
-            line.points = [last_line.points[i] - FOLLOW_DISTANCE * last_line.diff[i] for i in range(len(line.points))]
+            line.points = [last_line.points[i] - FOLLOW_DISTANCE * last_line.diff[i] for i in range(4)]
             line.diff = last_line.diff[:]
-
             self.line_list.append(line)
 
     def on_mouse_motion(self, x, y, dx, dy):
